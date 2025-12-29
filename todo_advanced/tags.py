@@ -93,7 +93,9 @@ class TagManager:
         updated_data = {**existing, **updates}
         updated_data["updated_at"] = datetime.utcnow().isoformat()
 
-        self.storage.add_tag_metadata(name, **updated_data)
+        # Remove 'name' from metadata dict before passing to storage
+        metadata = {k: v for k, v in updated_data.items() if k != "name"}
+        self.storage.add_tag_metadata(name, **metadata)
         return True
 
     def add_alias(self, tag_name: str, alias: str) -> bool:

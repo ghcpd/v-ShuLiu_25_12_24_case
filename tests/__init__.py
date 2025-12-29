@@ -1,3 +1,1 @@
-"""
-Create empty __init__.py for tests package.
-"""
+"""Test suite for todo_advanced."""

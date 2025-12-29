@@ -1,4 +1,4 @@
-User: **New Feature Prompt — Advanced Tag System for TODO Application**
+**New Feature Prompt — Advanced Tag System for TODO Application**
 
 The current `todo_original.py` implements a minimal in-memory TODO list where tags are just plain strings. There is no persistence, no metadata, no advanced filtering, no concurrency protection, and no extensibility.
 This feature introduces a complete, modern Tag System that is persistent, modular, concurrency-safe, and easy to extend—while preserving the existing public API.

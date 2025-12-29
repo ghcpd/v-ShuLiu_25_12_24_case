@@ -1,57 +1,39 @@
 @echo off
-REM Test runner for Windows PowerShell
-REM Creates environment, installs dependencies, and runs test suite
+REM One-click test runner for todo_advanced (Windows PowerShell)
 
-setlocal enabledelayedexpansion
-
-echo ============================================================
-echo Advanced TODO System - Test Runner (Windows)
-echo ============================================================
+echo ==========================================
+echo TODO Advanced - Test Runner (Windows)
+echo ==========================================
 echo.
 
-REM Check if Python is available
-python --version >nul 2>&1
-if errorlevel 1 (
-    echo Error: Python is not installed or not in PATH
-    exit /b 1
-)
-
-echo [1/4] Creating virtual environment...
-if not exist "venv\" (
+REM Create virtual environment if it doesn't exist
+if not exist "venv" (
+    echo Creating virtual environment...
     python -m venv venv
-    if errorlevel 1 (
-        echo Error: Failed to create virtual environment
-        exit /b 1
-    )
-) else (
-    echo Virtual environment already exists
 )
 
-echo.
-echo [2/4] Activating virtual environment and installing dependencies...
+REM Activate virtual environment
+echo Activating virtual environment...
 call venv\Scripts\activate.bat
+
+REM Install dependencies
+echo Installing dependencies...
 pip install -q -r requirements-dev.txt
-if errorlevel 1 (
-    echo Error: Failed to install dependencies
-    exit /b 1
-)
 
+REM Run tests
 echo.
-echo [3/4] Running test suite...
-python -m pytest tests\test_advanced_todo.py -v --tb=short
-if errorlevel 1 (
-    echo.
-    echo Error: Some tests failed
-    exit /b 1
-)
+echo Running test suite...
+echo.
+python -m pytest tests\ -v --tb=short --cov=todo_advanced --cov-report=term-missing
 
+REM Run performance tests
 echo.
-echo [4/4] Running performance tests...
+echo Running performance benchmarks...
+echo.
 python perf_test.py
 
 echo.
-echo ============================================================
-echo All tests completed successfully!
-echo ============================================================
-
-exit /b 0
+echo ==========================================
+echo Test suite complete!
+echo ==========================================
+pause

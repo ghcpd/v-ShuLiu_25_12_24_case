@@ -1,41 +1,40 @@
 #!/bin/bash
-# Test runner for Linux/macOS
-# Creates environment, installs dependencies, and runs test suite
+# One-click test runner for todo_advanced
 
-set -e  # Exit on first error
+set -e
 
-echo "============================================================"
-echo "Advanced TODO System - Test Runner (Unix/Linux/macOS)"
-echo "============================================================"
+echo "=========================================="
+echo "TODO Advanced - Test Runner"
+echo "=========================================="
 echo ""
 
-# Check if Python is available
-if ! command -v python3 &> /dev/null; then
-    echo "Error: Python 3 is not installed or not in PATH"
-    exit 1
-fi
-
-echo "[1/4] Creating virtual environment..."
+# Create virtual environment if it doesn't exist
 if [ ! -d "venv" ]; then
+    echo "Creating virtual environment..."
     python3 -m venv venv
-else
-    echo "Virtual environment already exists"
 fi
 
-echo ""
-echo "[2/4] Activating virtual environment and installing dependencies..."
+# Activate virtual environment
+echo "Activating virtual environment..."
 source venv/bin/activate
+
+# Install dependencies
+echo "Installing dependencies..."
 pip install -q -r requirements-dev.txt
 
+# Run tests
 echo ""
-echo "[3/4] Running test suite..."
-python -m pytest tests/test_advanced_todo.py -v --tb=short
+echo "Running test suite..."
+echo ""
+python3 -m pytest tests/ -v --tb=short --cov=todo_advanced --cov-report=term-missing
+
+# Run performance tests
+echo ""
+echo "Running performance benchmarks..."
+echo ""
+python3 perf_test.py
 
 echo ""
-echo "[4/4] Running performance tests..."
-python perf_test.py
-
-echo ""
-echo "============================================================"
-echo "All tests completed successfully!"
-echo "============================================================"
+echo "=========================================="
+echo "Test suite complete!"
+echo "=========================================="
