@@ -1,88 +1,106 @@
-Combined Prompt — Advanced Tag System for TODO Application (with Test-Driven Iteration)
+Role & Objective
+You are a senior software engineer and prompt engineer. Implement an advanced, persistent, modular, and concurrency-safe Tag System for an existing minimal TODO application while preserving the original public API and making the entire solution testable, extendable, and performant. Additionally, ensure that after implementation, all automated tests pass without requiring further interaction.
 
-The current todo_original.py implements a minimal in-memory TODO list where tags are just plain strings. There is no persistence, no metadata, no advanced filtering, no concurrency protection, and no extensibility.
-This feature introduces a complete, modern Tag System that is persistent, modular, concurrency-safe, and easy to extend—while preserving the existing public API—and must be developed iteratively by fixing all test failures reported in the terminal until the full test suite passes.
+Inputs & Context
+- Codebase context: There is an existing minimal in-memory TODO application with plain string tags in todo_original.py. It lacks persistence, structured tag metadata, advanced filtering/DSL, concurrency safety, and a plugin system.
+- Your task is to deliver a complete upgraded Tag System and surrounding modules, tests, and scripts within the current working directory.
+- Persistence choice: Use SQLite for durability, concurrency, and performance. (A storage abstraction must allow future JSON-with-locking as an alternative backend.)
 
-New Feature Requirements
-The upgraded Tag System should provide:
+Step-by-Step Instructions
+1) Project Structure and Backward Compatibility
+   - Preserve todo_original.py unchanged and maintain backward compatibility at the API level in a new wrapper module todo_advanced.py. All existing public API functions must behave exactly as before for callers using todo_original.py.
+   - Add a modular package-style layout using top-level Python modules for: models.py, storage.py, tags.py, query.py, plugins.py, cli.py, todo_advanced.py.
 
-Persistent Tag & Task Storage
+2) Data Models (models.py)
+   - Define models for Task and Tag with strong typing. Include for Tag: aliases (bidirectional support), color (string or enum), description, created_at, updated_at, usage_count, and co_occurrence relationships to other tags with counts.
+   - Define Task fields to support: id, title, description (optional), created_at, updated_at, completed_at (nullable), tags (list of tag IDs or names), and status flags (e.g., completed).
+   - Provide (de)serialization schemas for persistence with SQLite rows.
 
-Store all tasks, tags, and metadata using either SQLite or JSON with locking
-Survive restarts and support simple schema evolution
-Guarantee safe reads/writes under concurrency
-Structured Tag Model
+3) Storage Layer (storage.py)
+   - Implement a SQLite-backed Storage class providing safe CRUD for tasks, tags, and tag relationships. Include simple schema evolution (version table + migration steps).
+   - Guarantee concurrency safety with RLock or equivalent and use transactions for all write operations. Ensure snapshot-style reads to avoid inconsistent states.
+   - Expose clearly scoped methods: create/update/delete Task, create/update/delete Tag, manage aliases, update usage counters, update co-occurrence counts, and query by DSL results.
+   - Ensure durability and survive restarts. Include initialization that creates tables if absent and handles migrations idempotently.
 
-Aliases (e.g., “work” ↔ “office”)
-Colors for CLI display
-Descriptions
-Created/updated timestamps
-Usage counters
-Tag co-occurrence graph (relationships between tags)
-Tag Recommendations
+4) Tag Logic (tags.py)
+   - Implement tag operations: create/update/delete tags; manage aliases (aliases are symmetric); set/get color and description; update and read usage counters and co-occurrences.
+   - Implement tag recommendations using: (a) keyword similarity between tag name/description and input text, (b) co-occurrence history, and (c) usage frequency. Return ranked suggestions with scores.
+   - Provide utilities to normalize tag names (case and whitespace handling) while preserving display casing.
 
-Suggest tags based on keyword similarity
-Use co-occurrence history and usage frequency
-Query Language (Mini DSL)
+5) Query Language DSL (query.py)
+   - Implement a mini-DSL with tokenization, parsing, and evaluation for queries like: tag:work AND (urgent OR personal) AND NOT archived.
+   - Support operators: AND, OR, NOT; parentheses; prefix operators like tag:<name>, text:<keyword> (exact/contains), completed:true/false, and date filters (created>=, updated<=) extensible via a registry.
+   - Return matched tasks ordered by relevance score (e.g., keyword matches + usage signals), with a pluggable scoring function.
 
-Expressions like: tag:work AND (urgent OR personal) AND NOT archived
-Support for parentheses, operators, tokenization, parsing, and scoring
-Extensible operators for future additions
-Concurrency Safety
+6) Plugin System (plugins.py)
+   - Implement auto-discovery of plugin modules from a plugins/ namespace or entry-point-like scanning. No external packaging required; modules found in a plugins directory should be imported safely.
+   - Provide hooks: on_task_added, on_task_completed, on_tag_added, on_tag_updated, on_task_tagged, and pre/post-query hooks. Allow plugins to register custom DSL operators.
+   - Ensure plugins cannot crash the core: wrap calls, log errors, and continue.
 
-Protect updates from race conditions and corruption
-Allow safe concurrent creation and modification
-Support transaction or snapshot-style logic
-Modular Architecture
+7) CLI Enhancements (cli.py)
+   - Provide commands for adding/listing/completing/removing tasks; managing tags (create/update/aliases/colors/descriptions); running DSL queries; and viewing recommendations.
+   - Add fuzzy search for tasks/tags; colorized output; and paging for long results. Ensure Windows-friendly behavior.
+   - Make the CLI operate through todo_advanced.py, not directly on storage.
 
-Package structure with separate modules for storage, tags, query engine, plugins, validation, caching, metrics, CLI, etc.
-Clean internal boundaries and testable components
-Plugin System
+8) Advanced Wrapper API (todo_advanced.py)
+   - Preserve the original public API semantics from todo_original.py. Implement the advanced behavior underneath using the new storage, tags, query, and plugins modules.
+   - Provide thread-safe functions: add_todo, list_todos, complete_todo, delete_todo, add_tag_to_todo, list_tags, search/query, and metadata accessors.
+   - Ensure swapping between backends (SQLite now, JSON-with-locking later) via an internal interface; default to SQLite.
 
-Auto-discovery of plugin modules
-Hooks such as on_task_added / on_tag_added / on_task_completed
-Allow custom query operators or auto-tagging behaviors
-Enhanced CLI
+9) Tests (tests/)
+   - Add automated tests covering: persistence correctness (restart-safe), concurrency behavior (no corruption under simultaneous writes), DSL parsing/evaluation, tag metadata (aliases/colors/descriptions/timestamps/usage/co-occurrence), CLI commands, and plugin hooks.
+   - Add property-based tests (Hypothesis) for randomized queries and concurrent operations. Ensure tests are deterministic and isolated (use temporary DB files per test).
+   - Provide performance and stress tests that load 10k+ tasks and run representative queries.
 
-Fuzzy search for tasks/tags
-Colorized output
-Paging for long results
-Ability to run DSL queries directly from CLI
-Backward Compatibility
+10) Performance Validation (perf_test.py)
+   - Implement a benchmark script that:
+     - Inserts 10,000 tasks with varied tags.
+     - Measures: load time (< 80 ms target), typical DSL query latency (< 50 ms), and co-occurrence update latency (< 10 ms).
+     - Prints summary metrics and fails with a non-zero exit code if targets are not met (configurable thresholds).
 
-Existing API functions must behave exactly as before
-No breaking changes to callers using todo_original.py
-Expected Deliverables
-Code
+11) One-Click Test Scripts and Docs
+   - Provide run_tests.sh and run_tests.ps1 that:
+     - Create/activate a virtual environment.
+     - Install dependencies from requirements.txt and dev-only from requirements-dev.txt.
+     - Run the full pytest suite with verbose output and then run perf_test.py.
+   - Provide README.md with overview, setup, usage examples (API + CLI + DSL), plugin guide, and test instructions.
+   - Provide FEATURE_SPEC.md summarizing the advanced tag system’s capabilities and architecture.
 
-todo_advanced.py (API wrapper)
-Modular package providing storage, tag logic, query engine, plugin loader, concurrency tools, CLI enhancements, validation & caching layers
-todo_original.py preserved unchanged
-Tests
+12) Dependencies
+   - Provide requirements.txt for runtime (e.g., colorized CLI and fuzzy search libraries) and requirements-dev.txt for testing (pytest, hypothesis, coverage tools). Pin versions or minimum-compatible specifiers.
 
-Automated tests for persistence, concurrency behavior, query language, tag metadata, CLI commands, plugin hooks
-Performance and stress tests (e.g., 10k+ tasks)
-Property-based tests (Hypothesis) for random queries and simultaneous operations
-All tests placed under a tests/ directory
-Supporting Files
+13) Make Tests Pass (Single-Turn)
+   - After implementing the above, execute the test suite and fix issues discovered by the tests so that all tests pass without further prompts or questions. Ensure isolated test environments (temporary DB per test) and avoid shared global state.
 
-README.md with a simple overview of the new tag features, usage examples, and instructions for one-click testing
-One-click test script: run_tests (run_tests.sh + run_tests.ps1) that:
-Creates/activates environment
-Installs dependencies
-Runs the full automated test suite
-Prints results and performance metrics
-Reusable environment definition (requirements.txt + requirements-dev.txt)
-FEATURE_SPEC.md
-perf_test.py for basic performance validation
-Performance Targets
+Output Specification
+- Source files: models.py, storage.py, tags.py, query.py, plugins.py, cli.py, todo_advanced.py; keep todo_original.py unchanged.
+- Tests: Add/ensure coverage in tests/ for persistence, concurrency, DSL, metadata, CLI, plugins, and properties.
+- Scripts: run_tests.sh, run_tests.ps1, perf_test.py.
+- Docs: README.md and FEATURE_SPEC.md.
+- Manifests: requirements.txt and requirements-dev.txt.
+- All code must run on Windows/macOS/Linux, use SQLite by default, and pass the entire test suite in a single run.
 
-Load 10,000 tasks in < 80 ms
-Typical queries in < 50 ms
-Tag-relationship updates in < 10 ms
-No data corruption under concurrent writes
-Development & Testing Process
-Frequently run the full test suite via the provided run_tests script (or equivalent).
-Carefully read terminal/test output and modify the code strictly according to the feedback until all tests pass.
-Do not silence, skip, or delete failing tests; instead, fix the underlying implementation or adjust design while honoring the feature requirements and backward compatibility.
-When adding new features or refactoring, also add/update tests so that terminal feedback always accurately reflects the current requirements.
+Constraints & Preferences
+- Persistence: SQLite with transactional writes and RLock-based concurrency control; snapshot-style reads.
+- Structured Tag Model: aliases (symmetric), color, description, timestamps, usage counters, co-occurrence graph.
+- Tag Recommendations: combine keyword similarity, co-occurrence, and usage frequency; return ranked suggestions.
+- DSL: AND/OR/NOT, parentheses, extensible operators, and relevance scoring.
+- Plugin System: auto-discovery; robust against plugin errors; hooks as listed; allow custom operators.
+- CLI: fuzzy search, colorized display, paging; Windows-friendly.
+- Backward Compatibility: maintain existing public API behavior of todo_original.py exactly.
+- Modularity: clear internal boundaries, single-responsibility modules, and testability.
+- Concurrency Safety: no data corruption under concurrent writes; safe concurrent creation/modification.
+- Performance Targets: load 10,000 tasks < 80 ms; typical queries < 50 ms; tag-relationship updates < 10 ms.
+
+Quality Gates
+1) All tests in tests/ pass with pytest -v in one run with no flakiness.
+2) perf_test.py meets or beats the performance targets and exits successfully.
+3) Manual checks: run CLI commands for CRUD, DSL queries, tag recommendations, and plugin hook triggering without errors.
+4) Code quality: modular design, typed interfaces, minimal global state, and clear error handling.
+
+Critical Compliance Instructions (Place of Highest Priority)
+- Complete all steps in a single turn with no follow-up questions or interactive iteration.
+- Do not alter todo_original.py and do not break its public API semantics.
+- Ensure tests are deterministic by isolating state (e.g., per-test temporary DBs) and avoiding cross-test contamination.
+- Favor SQLite for persistence now; design a swappable backend interface for future JSON-with-locking.
+- Deliver all specified files exactly in the described paths and ensure the test suite fully passes.
